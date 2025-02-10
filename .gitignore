@@ -11,3 +11,6 @@ wheels/
 
 # Data folder
 data/*
+
+# executables
+*.sh

@@ -10,10 +10,10 @@ def pandas_read_csv(n):
     res = time.time() - start
     return res
 
-def pandas_read_parquet():
+def pandas_read_parquet(n):
     start = time.time()
-    df = pd.read_parquet("/home/mello/projects/rapids-cudf/data/interim/imdb_db/")
-    df.groupby("titleType").agg({"averageRating": "mean", "tconst": "count"})
+    df = pd.read_parquet(f"./data/parquet/users_{n}.parquet")
+    df.groupby("user_id").agg({"book_id": "count"})
     res = time.time() - start
     return res
 
@@ -81,7 +81,7 @@ def main():
         print(f"Worst time: {max(results):.4f} seconds")
             
     # Write results to CSV
-    with open("benchmark_results.csv", "a") as f:
+    with open(f"benchmark_results_{args.engine}.csv", "a") as f:
         f.write(f"{args.engine},{args.file_format},{res}\n")
                 
 
