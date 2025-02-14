@@ -8,6 +8,7 @@ def pandas_read_csv(n):
     df = pd.read_csv(f"./data/csv/users_{n}.csv")
     df.groupby("user_id").agg({"book_id": "count"})
     res = time.time() - start
+    del df
     return res
 
 def pandas_read_parquet(n):
@@ -15,6 +16,7 @@ def pandas_read_parquet(n):
     df = pd.read_parquet(f"./data/parquet/users_{n}.parquet")
     df.groupby("user_id").agg({"book_id": "count"})
     res = time.time() - start
+    del df
     return res
 
 def main():
@@ -66,7 +68,7 @@ def main():
             res = execs[args.file_format][args.engine](args.size)
             results.append(res)
             
-            with open("benchmark_results.csv", "a") as f:
+            with open(f"benchmark_results_{args.engine}.csv", "a") as f:
                 f.write(f"{args.engine},{args.file_format},{args.size},{i+1},{res}\n")
                 
         except Exception as e:
@@ -80,10 +82,5 @@ def main():
         print(f"Best time: {min(results):.4f} seconds")
         print(f"Worst time: {max(results):.4f} seconds")
             
-    # Write results to CSV
-    with open(f"benchmark_results_{args.engine}.csv", "a") as f:
-        f.write(f"{args.engine},{args.file_format},{res}\n")
-                
-
 if __name__ == "__main__":
     main()
