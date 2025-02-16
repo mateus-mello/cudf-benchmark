@@ -1,34 +1,104 @@
 import argparse
 import time
 import pandas as pd
+import polars as pl
 from datetime import datetime
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as f
+
+spark = (
+    SparkSession.builder 
+    .appName("cudf-benchmark")   
+    .master("local[*]")        
+    .config("spark.driver.memory", "22g")   
+    .config("spark.executor.memory", "22g") 
+    .getOrCreate()
+)
+
+def read_parquet(n, engine):
+    if (engine == "pandas"):
+        start = time.time()
+        df = pd.read_parquet(f"./data/parquet/users_{n}.parquet")
+        df = df.groupby("user_id").agg({"book_id": "count"})
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "pandas_cudf"):
+        start = time.time()
+        df = pd.read_parquet(f"./data/parquet/users_{n}.parquet")
+        df = df.groupby("user_id").agg({"book_id": "count"})
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "polars"):
+        start = time.time()
+        df = pl.scan_parquet(f"./data/parquet/users_{n}.parquet")
+        df = df.group_by("user_id").agg(pl.col("book_id").len()).collect()
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "polars_cudf"):
+        start = time.time()
+        df = pl.scan_parquet(f"./data/parquet/users_{n}.parquet")
+        df = df.group_by("user_id").agg(pl.col("book_id").len()).collect(engine="gpu")
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "spark"):
+        start = time.time()
+        df = spark.read.parquet(f"./data/parquet/users_{n}.parquet")
+        df = df.groupBy("user_id").agg(f.count("book_id"))
+        res = time.time() - start
+        del df
+        return res
 
 
-def pandas_read_csv(n):
-    start = time.time()
-    df = pd.read_csv(f"./data/csv/users_{n}.csv")
-    df.groupby("user_id").agg({"book_id": "count"})
-    res = time.time() - start
-    del df
-    return res
-
-def pandas_read_parquet(n):
-    start = time.time()
-    df = pd.read_parquet(f"./data/parquet/users_{n}.parquet")
-    df.groupby("user_id").agg({"book_id": "count"})
-    res = time.time() - start
-    del df
-    return res
+def read_csv(n, engine):
+    if (engine == "pandas"):
+        start = time.time()
+        df = pd.read_csv(f"./data/csv/users_{n}.csv")
+        df = df.groupby("user_id").agg({"book_id": "count"})
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "pandas_cudf"):
+        start = time.time()
+        df = pd.read_csv(f"./data/csv/users_{n}.csv")
+        df = df.groupby("user_id").agg({"book_id": "count"})
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "polars"):
+        start = time.time()
+        df = pl.scan_csv(f"./data/csv/users_{n}.csv")
+        df = df.group_by("user_id").agg(pl.col("book_id").len()).collect()
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "polars_cudf"):
+        start = time.time()
+        df = pl.scan_csv(f"./data/csv/users_{n}.csv")
+        df = df.group_by("user_id").agg(pl.col("book_id").len()).collect(engine="gpu")
+        res = time.time() - start
+        del df
+        return res
+    elif (engine == "spark"):
+        start = time.time()
+        df = spark.read.csv(f"./data/csv/users_{n}.csv", header=True)
+        df = df.groupBy("user_id").agg(f.count("book_id"))
+        res = time.time() - start
+        del df
+        return res
 
 def main():
     today = datetime.today().strftime("%Y%m%d")
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--engine", 
-        choices=["pandas", "cudf"], 
+        choices=["pandas", "pandas_cudf", "polars", "polars_cudf", "spark"], 
         default="pandas", 
         required=True,
-        help="Choose processing engine: pandas (CPU) or cudf (GPU)"
+        help="Choose processing engine: pandas (CPU), pandas_cudf (GPU), polars (CPU), polars_cudf (GPU) or spark (CPU)"
     )
     parser.add_argument(
         "--size", 
@@ -54,23 +124,17 @@ def main():
 
 
     execs = {
-        "csv": {
-            "pandas": pandas_read_csv,
-            "cudf": pandas_read_csv
-        },
-        "parquet": {
-            "pandas": pandas_read_parquet,
-            "cudf": pandas_read_parquet
-        }
+        "csv": read_csv,
+        "parquet": read_parquet
     }
 
     results = []
     for i in range(args.iterations):
         try:
-            res = execs[args.file_format][args.engine](args.size)
+            res = execs[args.file_format](args.size, args.engine)
             results.append(res)
             
-            with open(f"benchmark_results_{args.engine}_{today}.csv", "a") as f:
+            with open(f"benchmark_results_{today}.csv", "a") as f:
                 f.write(f"{args.engine},{args.file_format},{args.size},{i+1},{res}\n")
                 
         except Exception as e:
