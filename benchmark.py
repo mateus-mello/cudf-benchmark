@@ -1,6 +1,7 @@
 import argparse
 import time
 import pandas as pd
+from datetime import datetime
 
 
 def pandas_read_csv(n):
@@ -20,6 +21,7 @@ def pandas_read_parquet(n):
     return res
 
 def main():
+    today = datetime.today().strftime("%Y%m%d")
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--engine", 
@@ -68,7 +70,7 @@ def main():
             res = execs[args.file_format][args.engine](args.size)
             results.append(res)
             
-            with open(f"benchmark_results_{args.engine}.csv", "a") as f:
+            with open(f"benchmark_results_{args.engine}_{today}.csv", "a") as f:
                 f.write(f"{args.engine},{args.file_format},{args.size},{i+1},{res}\n")
                 
         except Exception as e:
