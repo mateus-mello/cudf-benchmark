@@ -10,6 +10,8 @@ dependencies = [
     "cudf-cu12",
     "plotly>=6.0.0",
     "nbformat>=5.10.4",
+    "polars>=1.22.0",
+    "pyspark==3.5.0",
 ]
 
 [tool.uv]
